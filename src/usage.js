@@ -23,7 +23,7 @@ async function fetchUsage() {
   const headers = {
     Accept: 'application/json',
     Authorization: `Bearer ${token}`,
-    'User-Agent': 'codex-control-center-vscode/0.1.0'
+    'User-Agent': 'codex-control-center-vscode/0.1.1'
   };
   if (auth.tokens.account_id) headers['chatgpt-account-id'] = auth.tokens.account_id;
   const response = await fetch('https://chatgpt.com/backend-api/wham/usage', {

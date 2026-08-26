@@ -21,7 +21,7 @@ A compact companion for the official OpenAI Codex VS Code extension.
 Or install from a terminal:
 
 ```powershell
-code --install-extension .\codex-control-center-0.1.0.vsix
+code --install-extension .\codex-control-center-0.1.1.vsix
 ```
 
 For a one-command installation on any Windows machine:
@@ -30,7 +30,7 @@ For a one-command installation on any Windows machine:
 irm https://raw.githubusercontent.com/Andrianarivelo/codex-control-center/main/install.ps1 | iex
 ```
 
-Click the reasoning indicator in the status bar to open the full control panel.
+Click the Codex Control icon in the Activity Bar or the reasoning indicator in the status bar to open the full control panel.
 
 ## Important technical boundary
 

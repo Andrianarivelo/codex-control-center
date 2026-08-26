@@ -2,7 +2,7 @@
   "name": "codex-control-center",
   "displayName": "Codex Control Center",
   "description": "A polished reasoning-effort slider, compaction shortcut, and remaining-usage monitor for the OpenAI Codex VS Code extension.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "andrianarivelo",
   "license": "MIT",
   "repository": {
@@ -26,13 +26,32 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onCommand:codexControl.open"
+    "onCommand:codexControl.open",
+    "onView:codexControl.dashboard"
   ],
   "main": "./src/extension.js",
   "extensionDependencies": [
     "openai.chatgpt"
   ],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codexControlContainer",
+          "title": "Codex Control",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "codexControlContainer": [
+        {
+          "id": "codexControl.dashboard",
+          "type": "webview",
+          "name": "Control Center"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "codexControl.open",

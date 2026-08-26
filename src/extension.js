@@ -7,6 +7,7 @@ const { fetchUsage, formatReset } = require('./usage');
 const { panelHtml } = require('./panel');
 
 let panel;
+let dashboardView;
 let effortItem;
 let usageItem;
 let compactItem;
@@ -47,6 +48,7 @@ function render() {
   usageItem.show();
   if (!vscode.workspace.getConfiguration('codexControl').get('showUsageInStatusBar', true)) usageItem.hide();
   if (panel) panel.webview.html = panelHtml(current);
+  if (dashboardView) dashboardView.webview.html = panelHtml(current);
 }
 
 async function changeEffort(effort) {
@@ -110,6 +112,24 @@ function openPanel(context) {
   render();
 }
 
+function configureWebview(webview) {
+  webview.options = { enableScripts: true };
+  webview.onDidReceiveMessage(async (message) => {
+    if (message.type === 'effort') await changeEffort(message.value);
+    if (message.type === 'compact') await compactConversation();
+    if (message.type === 'refresh') await refreshUsage();
+  });
+}
+
+class DashboardProvider {
+  resolveWebviewView(view) {
+    dashboardView = view;
+    configureWebview(view.webview);
+    view.onDidDispose(() => { dashboardView = undefined; });
+    render();
+  }
+}
+
 function scheduleUsageRefresh() {
   if (timer) clearInterval(timer);
   const minutes = vscode.workspace.getConfiguration('codexControl').get('updateIntervalMinutes', 5);
@@ -135,6 +155,7 @@ function activate(context) {
     vscode.commands.registerCommand('codexControl.selectEffort', selectEffort),
     vscode.commands.registerCommand('codexControl.compact', compactConversation),
     vscode.commands.registerCommand('codexControl.refreshUsage', () => refreshUsage()),
+    vscode.window.registerWebviewViewProvider('codexControl.dashboard', new DashboardProvider()),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('codexControl')) {
         scheduleUsageRefresh();
@@ -152,6 +173,12 @@ function activate(context) {
   render();
   refreshUsage(false);
   scheduleUsageRefresh();
+  if (!context.globalState.get('welcomeShown')) {
+    context.globalState.update('welcomeShown', true);
+    vscode.window.showInformationMessage('Codex Control Center is ready.', 'Open Control Center').then((choice) => {
+      if (choice === 'Open Control Center') openPanel(context);
+    });
+  }
 }
 
 function deactivate() {
