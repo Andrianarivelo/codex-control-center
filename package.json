@@ -1,0 +1,88 @@
+{
+  "name": "codex-control-center",
+  "displayName": "Codex Control Center",
+  "description": "A polished reasoning-effort slider, compaction shortcut, and remaining-usage monitor for the OpenAI Codex VS Code extension.",
+  "version": "0.1.0",
+  "publisher": "andrianarivelo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Andrianarivelo/codex-control-center.git"
+  },
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "AI",
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "codex",
+    "openai",
+    "reasoning",
+    "usage",
+    "compaction"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:codexControl.open"
+  ],
+  "main": "./src/extension.js",
+  "extensionDependencies": [
+    "openai.chatgpt"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "codexControl.open",
+        "title": "Open Control Center",
+        "category": "Codex Control"
+      },
+      {
+        "command": "codexControl.selectEffort",
+        "title": "Select Reasoning Effort",
+        "category": "Codex Control"
+      },
+      {
+        "command": "codexControl.compact",
+        "title": "Compact Current Conversation",
+        "category": "Codex Control"
+      },
+      {
+        "command": "codexControl.refreshUsage",
+        "title": "Refresh Usage",
+        "category": "Codex Control"
+      }
+    ],
+    "configuration": {
+      "title": "Codex Control Center",
+      "properties": {
+        "codexControl.updateIntervalMinutes": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Minutes between Codex usage refreshes."
+        },
+        "codexControl.showUsageInStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the remaining 5-hour allowance in the VS Code status bar."
+        },
+        "codexControl.confirmCompaction": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ask before opening the Codex compaction action."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test",
+    "package": "npx @vscode/vsce package --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.6.2"
+  }
+}
