@@ -1,8 +1,8 @@
 {
   "name": "codex-control-center",
   "displayName": "Codex Control Center",
-  "description": "A polished reasoning-effort slider, compaction shortcut, and remaining-usage monitor for the OpenAI Codex VS Code extension.",
-  "version": "0.1.1",
+  "description": "Version-aware native composer controls for the OpenAI Codex VS Code extension.",
+  "version": "0.2.0",
   "publisher": "andrianarivelo",
   "license": "MIT",
   "repository": {
@@ -14,7 +14,6 @@
   },
   "categories": [
     "AI",
-    "Visualization",
     "Other"
   ],
   "keywords": [
@@ -26,46 +25,28 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onCommand:codexControl.open",
-    "onView:codexControl.dashboard"
+    "onCommand:codexControl.applyPatch",
+    "onCommand:codexControl.restoreOriginal"
   ],
   "main": "./src/extension.js",
   "extensionDependencies": [
     "openai.chatgpt"
   ],
   "contributes": {
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "codexControlContainer",
-          "title": "Codex Control",
-          "icon": "resources/icon.svg"
-        }
-      ]
-    },
-    "views": {
-      "codexControlContainer": [
-        {
-          "id": "codexControl.dashboard",
-          "type": "webview",
-          "name": "Control Center"
-        }
-      ]
-    },
     "commands": [
       {
-        "command": "codexControl.open",
-        "title": "Open Control Center",
+        "command": "codexControl.applyPatch",
+        "title": "Apply or Repair Native Controls",
         "category": "Codex Control"
       },
       {
-        "command": "codexControl.selectEffort",
-        "title": "Select Reasoning Effort",
+        "command": "codexControl.restoreOriginal",
+        "title": "Restore Original Codex UI",
         "category": "Codex Control"
       },
       {
-        "command": "codexControl.compact",
-        "title": "Compact Current Conversation",
+        "command": "codexControl.showDiagnostics",
+        "title": "Show Patch Diagnostics",
         "category": "Codex Control"
       },
       {
@@ -84,24 +65,21 @@
           "maximum": 60,
           "description": "Minutes between Codex usage refreshes."
         },
-        "codexControl.showUsageInStatusBar": {
+        "codexControl.patchOnStartup": {
           "type": "boolean",
           "default": true,
-          "description": "Show the remaining 5-hour allowance in the VS Code status bar."
-        },
-        "codexControl.confirmCompaction": {
-          "type": "boolean",
-          "default": false,
-          "description": "Ask before opening the Codex compaction action."
+          "description": "Reapply the native composer patch when Codex or VS Code updates."
         }
       }
     }
   },
   "scripts": {
     "test": "node --test",
-    "package": "npx @vscode/vsce package --allow-missing-repository"
+    "package": "npx @vscode/vsce package --allow-missing-repository",
+    "vscode:uninstall": "node scripts/uninstall.js"
   },
   "devDependencies": {
-    "@vscode/vsce": "^3.6.2"
+    "@vscode/vsce": "^3.6.2",
+    "jsdom": "^29.1.1"
   }
 }

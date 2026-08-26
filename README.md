@@ -1,42 +1,64 @@
-# Codex Control Center
+# Codex Native Control Center
 
-A compact companion for the official OpenAI Codex VS Code extension.
+An intentionally invasive, version-aware patch for the official OpenAI Codex VS Code extension. It places compact controls directly inside the native composer beside the model selector.
 
-## Features
+## What it adds
 
-- Beautiful six-position reasoning slider: None, Low, Medium, High, X-High, and Max
-- Atomic updates to `~/.codex/config.toml`
-- Compact shortcut routed to the official Codex command menu
-- Remaining-allowance bars for the 5-hour and weekly windows
-- Status-bar controls with automatic usage refresh
-- No modification of the official OpenAI extension
+- A compact Power slider that drives Codex's own native reasoning picker
+- A Compact button that submits `/compact` to the active native conversation
+- A small remaining-usage bar updated by the extension host
+- Automatic reapplication when the official Codex extension updates
+- Version checks, an untouched HTML backup, diagnostics, and one-command rollback
+
+There is no separate panel, Activity Bar entry, or duplicate status-bar control.
 
 ## Install
 
-1. Install the official `openai.chatgpt` extension and sign in.
-2. Download the `.vsix` from the latest GitHub release.
-3. In VS Code, run **Extensions: Install from VSIX...** and select the file.
-4. Reload VS Code.
-
-Or install from a terminal:
+Install the official `openai.chatgpt` extension first, then download the latest VSIX and run:
 
 ```powershell
-code --install-extension .\codex-control-center-0.1.1.vsix
+code --install-extension .\codex-control-center-0.2.0.vsix --force
 ```
 
-For a one-command installation on any Windows machine:
+Or install the newest GitHub release automatically:
 
 ```powershell
 irm https://raw.githubusercontent.com/Andrianarivelo/codex-control-center/main/install.ps1 | iex
 ```
 
-Click the Codex Control icon in the Activity Bar or the reasoning indicator in the status bar to open the full control panel.
+Reload VS Code when prompted. The controls appear in the composer immediately before the native model button.
 
-## Important technical boundary
+## After an OpenAI update
 
-The official Codex extension does not currently publish a direct VS Code command for compacting the active conversation. The Compact button therefore opens the official Codex command menu, where you select Compact. If that command menu is unavailable, the extension copies `/compact` to the clipboard.
+The patcher watches extension changes and patches the new OpenAI version. If VS Code does not prompt automatically, run:
 
-Usage monitoring reads the existing local Codex authentication and requests `https://chatgpt.com/backend-api/wham/usage`. This is an internal ChatGPT endpoint, not a stable public API, so a future service update may require maintenance. Tokens are never logged or stored by this extension.
+```text
+Codex Control: Apply or Repair Native Controls
+```
+
+Then reload the window.
+
+## Rollback
+
+Run this command before uninstalling:
+
+```text
+Codex Control: Restore Original Codex UI
+```
+
+The extension also defines a VS Code uninstall hook that attempts to restore every installed Codex version.
+
+## Technical behavior
+
+The slider opens the native Codex Power menu and drives its built-in `data-reasoning-slider` keyboard control. This means the active composer owns the resulting model and reasoning selection. It does not edit `config.toml`.
+
+The Compact button refuses to overwrite a non-empty draft. With an empty composer, it inserts `/compact`, selects the native command when available, and submits through the native composer.
+
+Usage authentication stays in the extension host. Only sanitized percentages and reset timestamps are written to the patched webview assets.
+
+## Important warning
+
+This project modifies files inside the installed OpenAI extension. It is unsupported by OpenAI and a future UI redesign can break DOM discovery. The patcher refuses unknown HTML structures and keeps the original `index.html` beside the patched file for recovery.
 
 ## Development
 
@@ -45,8 +67,6 @@ npm install
 npm test
 npm run package
 ```
-
-Pushing a version tag such as `v0.1.0` runs the test suite, builds the VSIX, and attaches it to a GitHub release automatically.
 
 ## License
 

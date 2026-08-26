@@ -1,188 +1,115 @@
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
-const vscode = require('vscode');
-const { EFFORTS, configPath, getEffort, getModel, setEffort } = require('./config');
-const { fetchUsage, formatReset } = require('./usage');
-const { panelHtml } = require('./panel');
+const path = require("node:path");
+const vscode = require("vscode");
+const { applyPatch, inspectPatch, restorePatch } = require("./patcher");
+const { refreshUsageSnapshot } = require("./usage-snapshot");
 
-let panel;
-let dashboardView;
-let effortItem;
-let usageItem;
-let compactItem;
-let usage;
-let usageError = '';
-let timer;
-
-function titleCase(value) {
-  return value === 'xhigh' ? 'X-High' : value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-function state() {
-  return {
-    effort: getEffort(),
-    model: getModel(),
-    usage,
-    usageError,
-    primaryReset: usage && usage.primary ? formatReset(usage.primary.resetSeconds) : '',
-    secondaryReset: usage && usage.secondary ? formatReset(usage.secondary.resetSeconds) : ''
-  };
-}
-
-function render() {
-  const current = state();
-  effortItem.text = `$(lightbulb) ${titleCase(current.effort)}`;
-  effortItem.tooltip = `Codex reasoning effort: ${current.effort}\nClick to open the slider.`;
-  if (current.usage && current.usage.primary) {
-    const remaining = current.usage.primary.remaining;
-    const filled = Math.round(remaining / 20);
-    usageItem.text = `$(pulse) ${'▰'.repeat(filled)}${'▱'.repeat(5 - filled)} ${remaining.toFixed(0)}%`;
-    usageItem.tooltip = `Codex allowance remaining\n5-hour: ${remaining.toFixed(1)}% (${current.primaryReset})\nWeekly: ${current.usage.secondary ? `${current.usage.secondary.remaining.toFixed(1)}% (${current.secondaryReset})` : 'Unavailable'}\nClick to refresh.`;
-    usageItem.color = remaining <= 10 ? new vscode.ThemeColor('errorForeground') : remaining <= 25 ? new vscode.ThemeColor('editorWarning.foreground') : undefined;
-  } else {
-    usageItem.text = usageError ? '$(warning) Usage' : '$(sync~spin) Usage';
-    usageItem.tooltip = usageError || 'Loading Codex usage...';
-  }
-  usageItem.command = 'codexControl.refreshUsage';
-  usageItem.show();
-  if (!vscode.workspace.getConfiguration('codexControl').get('showUsageInStatusBar', true)) usageItem.hide();
-  if (panel) panel.webview.html = panelHtml(current);
-  if (dashboardView) dashboardView.webview.html = panelHtml(current);
-}
-
-async function changeEffort(effort) {
-  setEffort(effort);
-  render();
-  vscode.window.setStatusBarMessage(`Codex reasoning set to ${titleCase(effort)}`, 2500);
-}
-
-async function selectEffort() {
-  const current = getEffort();
-  const choice = await vscode.window.showQuickPick(EFFORTS.map((effort) => ({
-    label: `${effort === current ? '$(check)' : '$(circle-outline)'} ${titleCase(effort)}`,
-    description: effort === current ? 'Current' : '',
-    effort
-  })), { placeHolder: 'Select Codex reasoning effort', title: 'Codex Control Center' });
-  if (choice) await changeEffort(choice.effort);
-}
-
-async function compactConversation() {
-  const config = vscode.workspace.getConfiguration('codexControl');
-  if (config.get('confirmCompaction', false)) {
-    const answer = await vscode.window.showWarningMessage('Open the Codex compaction action for the active conversation?', { modal: true }, 'Continue');
-    if (answer !== 'Continue') return;
-  }
-  try {
-    await vscode.commands.executeCommand('chatgpt.openSidebar');
-    await vscode.commands.executeCommand('chatgpt.openCommandMenu');
-  } catch {
-    await vscode.env.clipboard.writeText('/compact');
-    vscode.window.showInformationMessage('The Codex command menu was unavailable. /compact was copied to your clipboard.');
-  }
-}
-
-async function refreshUsage(notifyOnError = true) {
-  usageError = '';
-  render();
-  try {
-    usage = await fetchUsage();
-  } catch (error) {
-    usage = null;
-    usageError = error instanceof Error ? error.message : String(error);
-    if (notifyOnError) vscode.window.showWarningMessage(`Codex usage could not be refreshed: ${usageError}`);
-  }
-  render();
-}
-
-function openPanel(context) {
-  if (panel) {
-    panel.reveal(vscode.ViewColumn.Beside);
-    render();
-    return;
-  }
-  panel = vscode.window.createWebviewPanel('codexControl.center', 'Codex Control Center', vscode.ViewColumn.Beside, { enableScripts: true, retainContextWhenHidden: true });
-  panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'resources', 'icon.svg');
-  panel.onDidDispose(() => { panel = undefined; });
-  panel.webview.onDidReceiveMessage(async (message) => {
-    if (message.type === 'effort') await changeEffort(message.value);
-    if (message.type === 'compact') await compactConversation();
-    if (message.type === 'refresh') await refreshUsage();
-  });
-  render();
-}
-
-function configureWebview(webview) {
-  webview.options = { enableScripts: true };
-  webview.onDidReceiveMessage(async (message) => {
-    if (message.type === 'effort') await changeEffort(message.value);
-    if (message.type === 'compact') await compactConversation();
-    if (message.type === 'refresh') await refreshUsage();
-  });
-}
-
-class DashboardProvider {
-  resolveWebviewView(view) {
-    dashboardView = view;
-    configureWebview(view.webview);
-    view.onDidDispose(() => { dashboardView = undefined; });
-    render();
-  }
-}
-
-function scheduleUsageRefresh() {
-  if (timer) clearInterval(timer);
-  const minutes = vscode.workspace.getConfiguration('codexControl').get('updateIntervalMinutes', 5);
-  timer = setInterval(() => refreshUsage(false), Math.max(1, minutes) * 60 * 1000);
-}
+let usageTimer;
 
 function activate(context) {
-  effortItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 103);
-  effortItem.command = 'codexControl.open';
-  effortItem.show();
-  compactItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 102);
-  compactItem.text = '$(archive) Compact';
-  compactItem.tooltip = 'Open the Codex command menu to compact the active conversation.';
-  compactItem.command = 'codexControl.compact';
-  compactItem.show();
-  usageItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 101);
+  const output = vscode.window.createOutputChannel("Codex Native Controls");
+  context.subscriptions.push(output);
+  const codex = () => vscode.extensions.getExtension("openai.chatgpt");
+  const assets = path.join(context.extensionPath, "resources");
+
+  async function patch({ promptReload = true } = {}) {
+    const extension = codex();
+    if (!extension) {
+      vscode.window.showErrorMessage(
+        "The official OpenAI Codex extension is not installed.",
+      );
+      return null;
+    }
+    try {
+      const result = applyPatch(extension.extensionPath, assets);
+      output.appendLine(`[patch] ${JSON.stringify(result)}`);
+      await refreshUsageSnapshot(extension.extensionPath, output);
+      if (result.changed && promptReload) {
+        const choice = await vscode.window.showInformationMessage(
+          "Codex native controls were patched successfully. Reload the window to activate them.",
+          "Reload Now",
+          "Later",
+        );
+        if (choice === "Reload Now")
+          await vscode.commands.executeCommand("workbench.action.reloadWindow");
+      }
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      output.appendLine(`[patch:error] ${message}`);
+      vscode.window.showErrorMessage(
+        `Codex native controls were not applied: ${message}`,
+      );
+      return null;
+    }
+  }
+
+  async function restore() {
+    const extension = codex();
+    if (!extension) return;
+    const answer = await vscode.window.showWarningMessage(
+      "Restore the untouched OpenAI Codex interface?",
+      { modal: true },
+      "Restore",
+    );
+    if (answer !== "Restore") return;
+    const result = restorePatch(extension.extensionPath);
+    output.appendLine(`[restore] ${JSON.stringify(result)}`);
+    const choice = await vscode.window.showInformationMessage(
+      "Original Codex UI restored.",
+      "Reload Now",
+    );
+    if (choice === "Reload Now")
+      await vscode.commands.executeCommand("workbench.action.reloadWindow");
+  }
+
+  async function refreshUsage() {
+    const extension = codex();
+    if (extension) await refreshUsageSnapshot(extension.extensionPath, output);
+  }
+
+  function scheduleUsage() {
+    if (usageTimer) clearInterval(usageTimer);
+    const minutes = vscode.workspace
+      .getConfiguration("codexControl")
+      .get("updateIntervalMinutes", 5);
+    usageTimer = setInterval(refreshUsage, Math.max(1, minutes) * 60 * 1000);
+  }
 
   context.subscriptions.push(
-    effortItem,
-    compactItem,
-    usageItem,
-    vscode.commands.registerCommand('codexControl.open', () => openPanel(context)),
-    vscode.commands.registerCommand('codexControl.selectEffort', selectEffort),
-    vscode.commands.registerCommand('codexControl.compact', compactConversation),
-    vscode.commands.registerCommand('codexControl.refreshUsage', () => refreshUsage()),
-    vscode.window.registerWebviewViewProvider('codexControl.dashboard', new DashboardProvider()),
+    vscode.commands.registerCommand("codexControl.applyPatch", () => patch()),
+    vscode.commands.registerCommand("codexControl.restoreOriginal", restore),
+    vscode.commands.registerCommand("codexControl.refreshUsage", refreshUsage),
+    vscode.commands.registerCommand("codexControl.showDiagnostics", () => {
+      const extension = codex();
+      output.appendLine(
+        `[diagnostics] ${JSON.stringify(extension ? inspectPatch(extension.extensionPath) : { error: "Codex not installed" }, null, 2)}`,
+      );
+      output.show(true);
+    }),
+    vscode.extensions.onDidChange(() =>
+      setTimeout(() => patch({ promptReload: true }), 1200),
+    ),
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration('codexControl')) {
-        scheduleUsageRefresh();
-        render();
-      }
-    })
+      if (event.affectsConfiguration("codexControl.updateIntervalMinutes"))
+        scheduleUsage();
+    }),
+    { dispose: () => usageTimer && clearInterval(usageTimer) },
   );
 
-  try {
-    const watcher = fs.watch(configPath(), { persistent: false }, () => setTimeout(render, 80));
-    context.subscriptions.push({ dispose: () => watcher.close() });
-  } catch {
-    // The configuration file may not exist before the first Codex run.
-  }
-  render();
-  refreshUsage(false);
-  scheduleUsageRefresh();
-  if (!context.globalState.get('welcomeShown')) {
-    context.globalState.update('welcomeShown', true);
-    vscode.window.showInformationMessage('Codex Control Center is ready.', 'Open Control Center').then((choice) => {
-      if (choice === 'Open Control Center') openPanel(context);
-    });
-  }
+  if (
+    vscode.workspace
+      .getConfiguration("codexControl")
+      .get("patchOnStartup", true)
+  )
+    setTimeout(() => patch({ promptReload: true }), 500);
+  else refreshUsage();
+  scheduleUsage();
 }
 
 function deactivate() {
-  if (timer) clearInterval(timer);
+  if (usageTimer) clearInterval(usageTimer);
 }
 
 module.exports = { activate, deactivate };
