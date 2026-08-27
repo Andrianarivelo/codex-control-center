@@ -2,7 +2,7 @@
   "name": "codex-control-center",
   "displayName": "Codex Control Center",
   "description": "Version-aware native composer controls for the OpenAI Codex VS Code extension.",
-  "version": "0.2.0",
+  "version": "0.2.4",
   "publisher": "andrianarivelo",
   "license": "MIT",
   "repository": {

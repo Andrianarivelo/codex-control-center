@@ -8,6 +8,7 @@ const fs = require("node:fs"),
     ASSETS,
     BEGIN,
     END,
+    PATCH_VERSION,
     applyPatch,
     patchHtml,
     restorePatch,
@@ -21,6 +22,16 @@ test("injects native controls exactly once", () => {
   assert.match(once, new RegExp(BEGIN));
   assert.match(once, new RegExp(END));
   assert.equal(twice, once);
+});
+test("refreshes a stale injection with the current cache key", () => {
+  const stale = patchHtml(fixture).replaceAll(PATCH_VERSION, "0.0.0-stale"),
+    refreshed = patchHtml(stale);
+  assert.match(refreshed, new RegExp(`\\?v=${PATCH_VERSION}`));
+  assert.match(
+    refreshed,
+    new RegExp(`data-codex-control-version="${PATCH_VERSION}"`),
+  );
+  assert.doesNotMatch(refreshed, /0\.0\.0-stale/);
 });
 test("unpatch returns the original HTML", () =>
   assert.equal(unpatchHtml(patchHtml(fixture)), fixture));

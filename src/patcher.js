@@ -2,10 +2,12 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { version: PATCH_VERSION } = require("../package.json");
 
 const BEGIN = "<!-- CODEX_NATIVE_CONTROLS_BEGIN -->";
 const END = "<!-- CODEX_NATIVE_CONTROLS_END -->";
-const INJECTION = `${BEGIN}\n    <link rel="stylesheet" href="./assets/codex-native-controls.css" />\n    <script type="module" src="./assets/codex-native-controls.js"></script>\n    ${END}`;
+const INJECTION = `${BEGIN}\n    <link rel="stylesheet" href="./assets/codex-native-controls.css?v=${PATCH_VERSION}" />\n    <script type="module" src="./assets/codex-native-controls.js?v=${PATCH_VERSION}" data-codex-control-version="${PATCH_VERSION}"></script>\n    ${END}`;
+const INJECTION_PATTERN = new RegExp(`${BEGIN}[\\s\\S]*?${END}`, "g");
 const ASSETS = ["codex-native-controls.css", "codex-native-controls.js"];
 const CLEANUP_ASSETS = [...ASSETS, "codex-native-usage.json"];
 
@@ -31,7 +33,7 @@ function patchHtml(html) {
     throw new Error(
       "A partial Codex Native Controls marker was found. Restore the original UI before repairing the patch.",
     );
-  if (hasBegin) return html;
+  if (hasBegin) return html.replace(INJECTION_PATTERN, INJECTION);
   if (
     !html.includes("<!-- PROD_CSP_TAG_HERE -->") ||
     !html.includes("</head>") ||
@@ -45,7 +47,10 @@ function patchHtml(html) {
 }
 
 function unpatchHtml(html) {
-  return html.replace(new RegExp(`${BEGIN}[\\s\\S]*?${END}\\s*`, "g"), "");
+  return html.replace(
+    new RegExp(`${BEGIN}[\\s\\S]*?${END}\\s*`, "g"),
+    "",
+  );
 }
 
 function validateExtension(extensionPath) {
@@ -142,6 +147,7 @@ module.exports = {
   ASSETS,
   BEGIN,
   END,
+  PATCH_VERSION,
   applyPatch,
   inspectPatch,
   patchHtml,

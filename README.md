@@ -1,11 +1,11 @@
 # Codex Native Control Center
 
-An intentionally invasive, version-aware patch for the official OpenAI Codex VS Code extension. It places compact controls directly inside the native composer beside the model selector.
+An intentionally invasive, version-aware patch for the official OpenAI Codex VS Code extension. It places compact controls in a dedicated accessory row inside the native composer, above the original model selector.
 
 ## What it adds
 
 - A compact Power slider that drives Codex's own native reasoning picker
-- A Compact button that submits `/compact` to the active native conversation
+- A polished Compact action that submits `/compact` to the active native conversation
 - A small remaining-usage bar updated by the extension host
 - Automatic reapplication when the official Codex extension updates
 - Version checks, an untouched HTML backup, diagnostics, and one-command rollback
@@ -17,7 +17,7 @@ There is no separate panel, Activity Bar entry, or duplicate status-bar control.
 Install the official `openai.chatgpt` extension first, then download the latest VSIX and run:
 
 ```powershell
-code --install-extension .\codex-control-center-0.2.0.vsix --force
+code --install-extension .\codex-control-center-0.2.4.vsix --force
 ```
 
 Or install the newest GitHub release automatically:
@@ -26,7 +26,7 @@ Or install the newest GitHub release automatically:
 irm https://raw.githubusercontent.com/Andrianarivelo/codex-control-center/main/install.ps1 | iex
 ```
 
-Reload VS Code when prompted. The controls appear in the composer immediately before the native model button.
+Reload VS Code when prompted. The controls appear in their own accessory row above the native model button, so the native and injected hit targets never overlap.
 
 ## After an OpenAI update
 
@@ -37,6 +37,8 @@ Codex Control: Apply or Repair Native Controls
 ```
 
 Then reload the window.
+
+Each release injects versioned asset URLs and rewrites older injection blocks, preventing the Codex webview cache from retaining an obsolete control script after an update.
 
 ## Rollback
 
@@ -50,7 +52,7 @@ The extension also defines a VS Code uninstall hook that attempts to restore eve
 
 ## Technical behavior
 
-The slider opens the native Codex Power menu and drives its built-in `data-reasoning-slider` keyboard control. This means the active composer owns the resulting model and reasoning selection. It does not edit `config.toml`.
+For ordinary changes, the slider invokes Codex's registered `composer.increaseReasoningEffort` and `composer.decreaseReasoningEffort` commands through the webview's native same-origin command channel. Every step waits for Codex's own selected-effort state to change before continuing. The Eco boundary and compatibility fallback use Codex's visually hidden `data-reasoning-slider` menu item, with the picker concealed before it can paint. The active composer therefore owns the real model and reasoning selection. The patch does not edit `config.toml`.
 
 The Compact button refuses to overwrite a non-empty draft. With an empty composer, it inserts `/compact`, selects the native command when available, and submits through the native composer.
 
